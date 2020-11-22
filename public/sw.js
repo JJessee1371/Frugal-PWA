@@ -10,7 +10,7 @@ const filesToCache = [
     '/icons/icon-512x512.png'
 ];
 
-//Install portion of SW lifecycle
+//Installation portion of SW lifecycle
 self.addEventListener('install', (e) => {
     e.waitUntil(
         caches
@@ -21,4 +21,24 @@ self.addEventListener('install', (e) => {
     );
 
     self.skipWaiting();
+});
+
+//Activate SW and clear previous caches
+self.addEventListener('activate', (e) => {
+    e.waitUntil(
+        caches
+        .keys()
+        .then(keyList => {
+            return Promise.all(
+                keyList.map(key => {
+                    if(key !== fileCache && key !== dataCache) {
+                        return caches.delete(key);
+                    }
+                })
+            );
+        })
+        .catch(err => console.log('Activation error: ', err))
+    );
+
+    self.clients.claim();
 });
