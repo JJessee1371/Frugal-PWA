@@ -1,4 +1,4 @@
-const fileCache = 'file-v1';
+const staticCache = 'file-v1';
 const dataCache = 'data-v1';
 const filesToCache = [
     '/',
@@ -31,7 +31,7 @@ self.addEventListener('activate', (e) => {
         .then(keyList => {
             return Promise.all(
                 keyList.map(key => {
-                    if(key !== fileCache && key !== dataCache) {
+                    if(key !== staticCache && key !== dataCache) {
                         return caches.delete(key);
                     }
                 })
@@ -41,4 +41,30 @@ self.addEventListener('activate', (e) => {
     );
 
     self.clients.claim();
+});
+
+//
+self.addEventListener('fetch', (e) => {
+    //Handle API caching
+    if(e.request.url.includes('/api')) {
+        return e.respondWith(
+            caches
+            .open(dataCache)
+            .then(cache => {
+                return fetch(e.request)
+                .then(response => {
+                    if(response.status === 200) {
+                        cache.put(e.request.url, response.clone());
+                    }
+
+                    return response;
+                })
+                .catch(err => {
+                    //Network failed, locate request in cache
+                    return cache.match(e.request);
+                })
+            })
+            .catch(err => console.log('Error fetching API: ', err))
+        );
+    };
 });
