@@ -1,103 +1,76 @@
-const staticCache = 'file-v1';
-const dataCache = 'data-v1';
 const filesToCache = [
-    '/',
-    '/index.html',
-    '/index.js',
-    '/manifest.webmanifest',
-    '/styles.css',
-    '/icons/icon-192x192.png',
-    '/icons/icon-512x512.png'
+    "/",
+    "/index.js",
+    "/db.js",
+    "/index.html",
+    "/styles.css",
+    "/manifest.webmanifest",
+    "/icons/icon-192x192.png",
+    "/icons/icon-512x512.png",
 ];
+  
+const staticCache = "static-cache-v2";
+const dataCache = "data-cache-v1";
 
-//Installation portion of SW lifecycle - cache static files
-self.addEventListener('install', (e) => {
-    e.waitUntil(
-        caches
-        .open(staticCache)
-        .then(cache => {
-            return cache.addAll(filesToCache);
+//Install portion of service worker life cycle
+self.addEventListener("install", function (event) {
+    event.waitUntil(
+        caches.open(staticCache).then(cache => {
+        return cache.addAll(filesToCache);
         })
-        .catch(err => console.log('Error caching static assets on install ', err))
     );
+    self.skipWaiting();
+    });
 
-    self.skipWaiting()
-});
-
-//Activate SW and clear previous caches
-self.addEventListener('activate', (e) => {
-    e.waitUntil(
-        caches
-        .keys()
-        .then(keyList => {
-            return Promise.all(
-                keyList.map(key => {
-                    if(key !== staticCache && key !== dataCache) {
-                        return caches.delete(key);
-                    }
-                })
-            );
+    //Activate portion of service worker life cycle
+    self.addEventListener("activate", function (event) {
+    event.waitUntil(
+        caches.keys().then(keyList => {
+        return Promise.all(
+            keyList.map(key => {
+            if (key !== staticCache && key !== dataCache) {
+                console.log("Deleting cache", key);
+                return caches.delete(key);
+            }
+            })
+        );
         })
-        .catch(err => console.log('Activation error: ', err))
     );
-
     self.clients.claim();
 });
 
 
-self.addEventListener('fetch', (e) => {
-    //Handle API caching
-    if(e.request.url.includes('/api')) {
-        return e.respondWith(
-            caches
-            .open(dataCache)
-            .then(cache => {
-                return fetch(e.request)
-                .then(response => {
-                    if(response.status === 200) {
-                        cache.put(e.request.url, response.clone());
-                    }
-
-                    return response;
-                })
-                .catch(err => {
-                    //Network failed, locate request in cache
-                    return cache.match(e.request);
-                })
-            })
-            .catch(err => console.log('Error fetching API: ', err))
-        );
-    };
-
-    //Handle remaining data caching
-    e.respondWith(
-        caches
-        .match(e.request)
-        .then(response => {
-            if(response) {
-                return response;
-            }
-
-            return fetch(e.request)
-            .then((response) => {
-                if(!response || !response.basic || !response.status !== 200) {
-                    return response;
+// Hanlde fetch requests
+self.addEventListener("fetch", function (event) {
+    // Cache all API requests
+    if (event.request.url.includes("/api/")) {
+        event.respondWith(
+        caches.open(dataCache).then(cache => {
+            return fetch(event.request)
+            .then(response => {
+                // If response is good, clone it and store it
+                if (response.status === 200) {
+                cache.put(event.request.url, response.clone());
                 }
 
-                //Reading consumes the response
-                const responseToCache = respnse.clone();
-
-                caches
-                .open(cacheName)
-                .then(cache => {
-                    cache.put(e.request, responseToCache);
-                })
-                .catch(err => console.log(err));
-
                 return response;
             })
+            .catch(err => {
+                // Network request failed, retreive data from cache
+                return cache.match(event.request);
+            });
+        }).catch(err => { return cache.match(event.request) }
+        )
+        );
+        return;
+    }
+
+    event.respondWith(
+        caches.match(event.request).then(function (response) {
+        return response || fetch(event.request);
         })
-        .catch(err => console.log('Error'))
+        .catch((err) => {
+            console.error(err.stack)
+        })
     );
 });
-
