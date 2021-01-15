@@ -13,7 +13,7 @@ const staticCache = "static-cache-v1";
 const dataCache = "data-cache-v1";
 
 
-//Install portion of sw life cycle
+//Install portion of sw life cycle - cahce all static assets
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches
