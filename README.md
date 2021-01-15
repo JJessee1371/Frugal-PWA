@@ -1,5 +1,4 @@
 # PWA-Budget-Tracker
-
 ## Description
 A progressive web application that allows its users to track their spending and earning regardless of 
 whether they have access to online functionality or not. 
@@ -13,4 +12,8 @@ whether they have access to online functionality or not.
 * MongoDB
 * IndexedDB
 
-## 
+## Deployed Application
+https://tranquil-beyond-36322.herokuapp.com/
+
+## Credits
+The front end design and JS routes for this application were written by the University of Utah coding bootcamp. Our task was to transform the existing application into a PWA. 
