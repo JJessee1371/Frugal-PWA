@@ -8,69 +8,75 @@ const filesToCache = [
     "/icons/icon-192x192.png",
     "/icons/icon-512x512.png",
 ];
-  
-const staticCache = "static-cache-v2";
+
+const staticCache = "static-cache-v1";
 const dataCache = "data-cache-v1";
 
-//Install portion of service worker life cycle
-self.addEventListener("install", function (event) {
+
+//Install portion of sw life cycle
+self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(staticCache).then(cache => {
-        return cache.addAll(filesToCache);
-        })
+        caches
+            .open(staticCache)
+            .then(cache => {
+                return cache.addAll(filesToCache)
+            })
+            .catch(err => console.log("SW install caching error: ", err))
     );
     self.skipWaiting();
-    });
+});
 
-    //Activate portion of service worker life cycle
-    self.addEventListener("activate", function (event) {
+//Activation portion of sw life cycle
+self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then(keyList => {
-        return Promise.all(
-            keyList.map(key => {
-            if (key !== staticCache && key !== dataCache) {
-                console.log("Deleting cache", key);
-                return caches.delete(key);
-            }
+        caches
+            .keys()
+            .then(keyList => {
+                return Promise.all(
+                    keyList.map(key => {
+                        if (key !== staticCache && key !== dataCache) {
+                            return caches.delete(key);
+                        }
+                    })
+                )
             })
-        );
-        })
+            .catch(err => console.log("SW activation error: ", err))
     );
     self.clients.claim();
 });
 
 
-// Hanlde fetch requests
-self.addEventListener("fetch", function (event) {
-    // Cache all API requests
-    if (event.request.url.includes("/api/")) {
-        event.respondWith(
-        caches.open(dataCache).then(cache => {
-            return fetch(event.request)
-            .then(response => {
-                // If response is good, clone it and store it
-                if (response.status === 200) {
-                cache.put(event.request.url, response.clone());
-                }
-
-                return response;
-            })
-            .catch(err => {
-                // Network request failed, retreive data from cache
-                return cache.match(event.request);
-            });
-        }).catch(err => { return cache.match(event.request) }
+//Fetching data
+self.addEventListener('fetch', (event) => {
+    //Handle API requests
+    if (event.request.url.includes("/api")) {
+        return event.respondWith(
+            caches
+                .open(dataCache)
+                .then(dataCache => {
+                   return fetch(event.request)
+                    .then(res => {
+                        if (res.status === 200) {
+                            dataCache.put(event.request.url, res.clone());
+                        }
+                        return res;
+                    })
+                    .catch(err => {
+                        console.log("SW fetch response error: ", err);
+                        return dataCache.match(event.request);
+                    })
+                })
+                .catch(err => console.log("SW open cache error: ", err))
         )
-        );
-        return;
     }
 
+    //All other requests handled here
     event.respondWith(
-        caches.match(event.request).then(function (response) {
-        return response || fetch(event.request);
-        })
-        .catch((err) => {
-            console.error(err.stack)
-        })
-    );
+        caches
+            .match(event.request)
+            .then(res => {
+                return res || fetch(event.request)                
+            })
+            .catch(err => console.log("Handle other reqs err: ", err))                
+    )
 });
